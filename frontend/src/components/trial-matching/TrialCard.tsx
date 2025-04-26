@@ -1,4 +1,3 @@
-// src/components/trial-matching/TrialCard.tsx
 import React from 'react';
 import { Card, Button, Badge } from 'react-bootstrap';
 import { UserProfile } from '../../types/UserProfile';
@@ -23,12 +22,14 @@ const TrialCard: React.FC<TrialCardProps> = ({
   const matchPercentage = Math.round((trial.matchScore || 0) * 100);
   
   // Find the closest location
-  const closestLocation = trial.locations.reduce((closest: any, current: any) => {
-    if (!closest || (current.distance !== undefined && current.distance < closest.distance)) {
-      return current;
-    }
-    return closest;
-  }, null);
+  const closestLocation = trial.locations && trial.locations.length > 0 
+    ? trial.locations.reduce((closest: any, current: any) => {
+        if (!closest || (current.distance !== undefined && current.distance < closest.distance)) {
+          return current;
+        }
+        return closest;
+      }, null)
+    : null;
   
   const formatDistance = (distance?: number): string => {
     if (distance === undefined) return 'Unknown distance';
@@ -37,7 +38,7 @@ const TrialCard: React.FC<TrialCardProps> = ({
   
   // Format location string
   const locationText = closestLocation 
-    ? `${closestLocation.city}, ${closestLocation.state} - ${formatDistance(closestLocation.distance)}`
+    ? `${closestLocation.city || ''}, ${closestLocation.state || ''} ${closestLocation.distance !== undefined ? `- ${formatDistance(closestLocation.distance)}` : ''}`
     : 'Location information not available';
   
   // Format compensation data
@@ -48,6 +49,26 @@ const TrialCard: React.FC<TrialCardProps> = ({
   ) : (
     <Badge bg="secondary" className="ms-2">No Payment</Badge>
   );
+  
+  // Format gender badge
+  const formatGender = () => {
+    if (!trial.gender) return null;
+    
+    // Clean up the gender display
+    const normalizedGender = trial.gender.toLowerCase();
+    
+    if (normalizedGender === 'all' || normalizedGender.includes('both')) {
+      return <Badge bg="info" className="me-1">All Genders</Badge>;
+    } else if (normalizedGender.includes('male') && normalizedGender.includes('female')) {
+      return <Badge bg="info" className="me-1">All Genders</Badge>;
+    } else if (normalizedGender.includes('male')) {
+      return <Badge bg="info" className="me-1">Male</Badge>;
+    } else if (normalizedGender.includes('female')) {
+      return <Badge bg="info" className="me-1">Female</Badge>;
+    }
+    
+    return null;
+  };
 
   return (
     <Card className="trial-card">
@@ -66,16 +87,16 @@ const TrialCard: React.FC<TrialCardProps> = ({
         </Card.Subtitle>
         
         <div className="trial-tags mb-3">
-          {trial.conditions.slice(0, 3).map((condition: string, index: number) => (
-            <Badge bg="info" className="me-1" key={index}>{condition}</Badge>
+          {trial.conditions && trial.conditions.slice(0, 3).map((condition: string, index: number) => (
+            <Badge bg="primary" className="me-1" key={index}>{condition}</Badge>
           ))}
-          {trial.gender && <Badge bg="dark" className="me-1">{trial.gender}</Badge>}
+          {formatGender()}
         </div>
         
         <Card.Text className="trial-summary">
           {trial.summary && trial.summary.length > 200 
             ? trial.summary.substring(0, 200) + '...' 
-            : trial.summary}
+            : trial.summary || 'No summary available'}
         </Card.Text>
         
         {trial.compensation?.has_compensation && (

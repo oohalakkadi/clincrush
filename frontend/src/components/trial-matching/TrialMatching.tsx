@@ -1,87 +1,60 @@
-// src/components/trial-matching/TrialMatching.tsx
 import React, { useEffect, useState } from 'react';
 import { Container, Row, Col, Spinner, Alert, Button } from 'react-bootstrap';
 import { searchTrials } from '../../services/api';
 import TrialCard from './TrialCard';
 import { UserProfile } from '../../types/UserProfile';
-import { rankTrialsByMatchScore, filterTrialsByAllergies } from '../../utils/matchingAlgorithm';
-import { geocodeAddress } from '../../services/geocoding';
+import { rankTrialsByMatchScore } from '../../utils/matchingAlgorithm';
 import './TrialMatching.css';
+import Debug from '../Debug';
 
 interface TrialMatchingProps {
   userProfile: UserProfile;
+  debug?: boolean;
 }
 
-const TrialMatching: React.FC<TrialMatchingProps> = ({ userProfile }) => {
+const TrialMatching: React.FC<TrialMatchingProps> = ({ userProfile, debug = false }) => {
   const [trials, setTrials] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [matchedTrials, setMatchedTrials] = useState<any[]>([]);
   const [rejectedTrials, setRejectedTrials] = useState<any[]>([]);
-  const [geocodingStatus, setGeocodingStatus] = useState<string>('pending');
-
+  
   // Load trials based on user profile
   useEffect(() => {
-    const loadTrialsWithGeocoding = async () => {
+    const loadTrials = async () => {
       if (userProfile && userProfile.medicalConditions.length > 0) {
         setLoading(true);
         setError(null);
-        setGeocodingStatus('pending');
         
         try {
-          // First geocode the user's location
-          const location = userProfile.location;
-          setGeocodingStatus('geocoding');
-          
-          let userCoordinates;
-          try {
-            const geocodeResult = await geocodeAddress(location);
-            userCoordinates = {
-              lat: geocodeResult.lat,
-              lng: geocodeResult.lng
-            };
-            
-            // Update user profile with geocoded coordinates
-            const updatedProfile = {
-              ...userProfile,
-              coordinates: userCoordinates
-            };
-            
-            // Save updated profile to localStorage
-            localStorage.setItem('userProfile', JSON.stringify(updatedProfile));
-            
-            setGeocodingStatus('success');
-          } catch (geoError) {
-            console.error('Geocoding error:', geoError);
-            setGeocodingStatus('failed');
-            // Continue without geocoding
-          }
-          
-          // Search for trials based on first condition
+          // Use the first condition for searching
           const condition = userProfile.medicalConditions[0];
+          // Extract city from location
           const city = userProfile.location.split(',')[0].trim();
+          
+          console.log(`Searching for trials with condition: ${condition}, location: ${city}`);
           
           const trialsData = await searchTrials(condition, city);
           
           if (Array.isArray(trialsData) && trialsData.length > 0) {
-            // Filter trials based on user allergies
-            const filteredTrials = filterTrialsByAllergies(trialsData, userProfile.allergies);
+            console.log(`Received ${trialsData.length} trials from API`);
             
-            // Rank trials by match score and distance
-            const rankedTrials = rankTrialsByMatchScore(filteredTrials, userProfile);
+            // Rank trials by match score
+            const rankedTrials = rankTrialsByMatchScore(trialsData, userProfile);
+            console.log(`Ranked ${rankedTrials.length} trials`);
             
             setTrials(rankedTrials);
             setCurrentIndex(0);
-            
-            // Reset matched and rejected trials
             setMatchedTrials([]);
             setRejectedTrials([]);
           } else {
+            console.error('No trials returned from API or invalid response format', trialsData);
             setError('No clinical trials found matching your criteria.');
             setTrials([]);
           }
         } catch (err) {
+          console.error('Error loading trials:', err);
           setError('Failed to load clinical trials. Please try again later.');
           setTrials([]);
         } finally {
@@ -93,7 +66,7 @@ const TrialMatching: React.FC<TrialMatchingProps> = ({ userProfile }) => {
       }
     };
 
-    loadTrialsWithGeocoding();
+    loadTrials();
   }, [userProfile]);
 
   const handleSwipeLeft = () => {
@@ -125,19 +98,19 @@ const TrialMatching: React.FC<TrialMatchingProps> = ({ userProfile }) => {
       
       // Display more comprehensive information
       const locations = trial.locations.map((loc: any) => 
-        `${loc.facility}, ${loc.city}, ${loc.state}, ${loc.country}${loc.distance ? ` (${loc.distance} miles)` : ''}`
+        `${loc.facility || 'Unknown facility'}, ${loc.city || ''}, ${loc.state || ''}, ${loc.country || ''}${loc.distance ? ` (${loc.distance} miles)` : ''}`
       ).join('\n');
       
       alert(
         `${trial.title}\n\n` +
         `ID: ${trial.id}\n\n` +
-        `Match Score: ${Math.round(trial.matchScore * 100)}%\n\n` +
+        `Match Score: ${Math.round((trial.matchScore || 0) * 100)}%\n\n` +
         `${compensationInfo}\n\n` +
-        `Conditions: ${trial.conditions.join(', ')}\n\n` +
-        `Gender: ${trial.gender}\n` +
-        `Age Range: ${trial.age_range.min} - ${trial.age_range.max}\n\n` +
+        `Conditions: ${trial.conditions ? trial.conditions.join(', ') : 'Not specified'}\n\n` +
+        `Gender: ${trial.gender || 'Not specified'}\n` +
+        `Age Range: ${trial.age_range?.min || 'Any'} - ${trial.age_range?.max || 'Any'}\n\n` +
         `Locations:\n${locations}\n\n` +
-        `Summary:\n${trial.summary}`
+        `Summary:\n${trial.summary || 'No summary available'}`
       );
     }
   };
@@ -147,13 +120,6 @@ const TrialMatching: React.FC<TrialMatchingProps> = ({ userProfile }) => {
       <Row className="my-4">
         <Col>
           <h2 className="text-center mb-4">Your Matching Clinical Trials</h2>
-          
-          {geocodingStatus === 'geocoding' && (
-            <Alert variant="info" className="mb-3">
-              <Spinner animation="border" size="sm" className="me-2" />
-              Geocoding your location for more accurate matches...
-            </Alert>
-          )}
           
           {loading && (
             <div className="text-center my-5">
@@ -177,6 +143,10 @@ const TrialMatching: React.FC<TrialMatchingProps> = ({ userProfile }) => {
                 onShowDetails={handleShowDetails}
                 userProfile={userProfile}
               />
+              
+              <div className="text-center mt-3">
+                <p className="text-muted">Swipe left to pass, right to save this trial</p>
+              </div>
             </div>
           )}
           
@@ -200,13 +170,26 @@ const TrialMatching: React.FC<TrialMatchingProps> = ({ userProfile }) => {
             </Alert>
           )}
           
-          {!loading && !error && (
+          {!loading && !error && trials.length > 0 && (
             <div className="stats-container text-center mt-3">
               <p>Viewed: {currentIndex} | Matched: {matchedTrials.length} | Passed: {rejectedTrials.length}</p>
             </div>
           )}
         </Col>
       </Row>
+      {debug && (
+        <Debug 
+          data={{
+            userProfile,
+            currentTrial: trials[currentIndex] || 'No current trial',
+            totalTrials: trials.length,
+            currentIndex,
+            matchedCount: matchedTrials.length,
+            rejectedCount: rejectedTrials.length
+          }}
+          title="Trial Matching Debug"
+        />
+      )}
     </Container>
   );
 };

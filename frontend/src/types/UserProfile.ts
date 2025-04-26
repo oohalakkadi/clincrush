@@ -16,7 +16,7 @@ export interface UserProfile {
   maxTravelDistance: number; 
   contactEmail: string;
   contactPhone?: string;
-  preferredCompensation?: number; 
+  preferredCompensation?: number; // minimum preferred compensation
 }
 
 export const defaultUserProfile: UserProfile = {

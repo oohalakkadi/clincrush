@@ -1,4 +1,4 @@
-// src/components/profile/ProfileForm.tsx
+// Update the ProfileForm component to include common allergens and preferred compensation
 import React, { useState } from 'react';
 import { Form, Button, Row, Col, Card, Badge, Alert } from 'react-bootstrap';
 import { UserProfile } from '../../types/UserProfile';
@@ -22,8 +22,14 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
 
   // Common allergens for quick selection
   const commonAllergens = [
-    'Penicillin', 'Ibuprofen', 'Aspirin', 'Latex', 'Peanuts', 'Shellfish',
-    'Eggs', 'Dairy', 'Soy', 'Wheat', 'Tree Nuts', 'Sulfonamides'
+    'Penicillin', 'Ibuprofen', 'Aspirin', 'Latex', 'Peanuts', 
+    'Shellfish', 'Eggs', 'Dairy', 'Soy', 'Wheat', 'Tree Nuts', 'Sulfonamides'
+  ];
+
+  // Common conditions for suggestions
+  const commonConditions = [
+    'Diabetes', 'High Blood Pressure', 'Asthma', 'Cancer', 'Depression',
+    'Anxiety', 'Heart Disease', 'Arthritis', 'COPD', 'Obesity'
   ];
 
   // Check if all required fields are filled
@@ -71,6 +77,22 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
         medicalConditions: [...profile.medicalConditions, newCondition.trim()]
       });
       setNewCondition('');
+      
+      // Clear validation error for medicalConditions
+      if (validationErrors.medicalConditions) {
+        const newErrors = { ...validationErrors };
+        delete newErrors.medicalConditions;
+        setValidationErrors(newErrors);
+      }
+    }
+  };
+
+  const addCommonCondition = (condition: string) => {
+    if (!profile.medicalConditions.includes(condition)) {
+      setProfile({
+        ...profile,
+        medicalConditions: [...profile.medicalConditions, condition]
+      });
       
       // Clear validation error for medicalConditions
       if (validationErrors.medicalConditions) {
@@ -329,6 +351,25 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
                 Add
               </Button>
             </div>
+            
+            <div className="mb-2">
+              <small className="text-muted">Common conditions:</small>
+              <div className="mt-1">
+                {commonConditions.map(condition => (
+                  <Button 
+                    key={condition}
+                    size="sm" 
+                    variant="outline-primary" 
+                    className="me-1 mb-1" 
+                    onClick={() => addCommonCondition(condition)}
+                    disabled={profile.medicalConditions.includes(condition)}
+                  >
+                    {condition}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            
             <div>
               {profile.medicalConditions.map((condition, index) => (
                 <Badge bg="primary" className="me-2 mb-2 p-2" key={index}>
@@ -370,7 +411,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
                   <Button 
                     key={allergen}
                     size="sm" 
-                    variant="outline-secondary" 
+                    variant="outline-danger" 
                     className="me-1 mb-1" 
                     onClick={() => addCommonAllergen(allergen)}
                     disabled={profile.allergies.includes(allergen)}
