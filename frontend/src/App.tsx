@@ -15,7 +15,7 @@ function App() {
   const [apiConnected, setApiConnected] = useState<boolean | null>(null);
   const [debugMode, setDebugMode] = useState<boolean>(false);
   
-  // Check for debug mode in URL or localStorage
+  // Check for debug mode in URL or localStorage - only on initial load
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('debug') === 'true') {
@@ -24,11 +24,10 @@ function App() {
     } else if (localStorage.getItem('debug') === 'true') {
       setDebugMode(true);
     }
-  }, []);
+  }, []);  // Empty dependency array ensures this only runs once
 
   // Check API health on component mount
   useEffect(() => {
-
     const checkBackendConnection = async () => {
       try {
         await checkApiHealth();
@@ -40,37 +39,41 @@ function App() {
     };
     
     checkBackendConnection();
-  }, []);
+  }, []);  // Empty dependency array ensures this only runs once
 
   // Load profile on component mount
   useEffect(() => {
-    const savedProfile = localStorage.getItem('userProfile');
-    if (savedProfile) {
-      try {
-        const profile = JSON.parse(savedProfile);
-        setUserProfile(profile);
-        
-        // Check if profile is complete (has required fields)
-        const isComplete = Boolean(
-          profile.firstName && 
-          profile.lastName && 
-          profile.age > 0 &&
-          profile.location && 
-          profile.medicalConditions.length > 0 &&
-          profile.contactEmail
-        );
-        
-        setProfileComplete(isComplete);
-        
-        // If profile is complete or we're in debug mode, navigate to trial matching tab
-        if (isComplete || debugMode) {
-          setActiveTab('match');
+    const loadProfile = () => {
+      const savedProfile = localStorage.getItem('userProfile');
+      if (savedProfile) {
+        try {
+          const profile = JSON.parse(savedProfile);
+          setUserProfile(profile);
+          
+          // Check if profile is complete (has required fields)
+          const isComplete = Boolean(
+            profile.firstName && 
+            profile.lastName && 
+            profile.age > 0 &&
+            profile.location && 
+            profile.medicalConditions.length > 0 &&
+            profile.contactEmail
+          );
+          
+          setProfileComplete(isComplete);
+          
+          // If profile is complete or we're in debug mode, navigate to trial matching tab
+          if (isComplete || debugMode) {
+            setActiveTab('match');
+          }
+        } catch (e) {
+          console.error('Failed to parse saved profile:', e);
         }
-      } catch (e) {
-        console.error('Failed to parse saved profile:', e);
       }
-    }
-  }, [debugMode]);
+    };
+    
+    loadProfile();
+  }, [debugMode]);  // Only reload when debug mode changes
 
   // Handle profile saving
   const handleProfileUpdate = (profile: UserProfile) => {
